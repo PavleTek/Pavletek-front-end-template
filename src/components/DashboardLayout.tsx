@@ -39,7 +39,7 @@ const navigationItems: NavigationItem[] = [
   },
   {
     name: "Accounting",
-    href: "/reports",
+    href: "/accounting",
     icon: ChartPieIcon,
     allowedRoles: ["admin", "manager", "accountant"],
   },

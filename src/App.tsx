@@ -5,7 +5,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import Login from "./components/Login";
 import Dashboard from "./pages/Dashboard";
-import Reports from "./pages/Reports";
+import Accounting from "./pages/Accounting";
 import UserManagement from "./pages/UserManagement";
 import AppSettings from "./pages/AppSettings";
 
@@ -44,11 +44,11 @@ const AppRoutes: React.FC = () => {
         }
       />
       <Route
-        path="/reports"
+        path="/accounting"
         element={
           <ProtectedRoute allowedRoles={["admin", "manager", "accountant"]}>
             <DashboardLayout>
-              <Reports />
+              <Accounting />
             </DashboardLayout>
           </ProtectedRoute>
         }

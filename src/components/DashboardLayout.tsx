@@ -189,8 +189,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         onClick={() => navigate(item.href)}
                         className={classNames(
                           location.pathname === item.href
-                            ? "bg-gray-50 text-indigo-600"
-                            : "text-gray-700 hover:bg-gray-50 hover:text-indigo-600",
+                            ? "bg-gray-50 text-primary"
+                            : "text-gray-700 hover:bg-gray-50 hover:text-primary",
                           "group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold w-full text-left"
                         )}
                       >
@@ -198,8 +198,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           aria-hidden={true}
                           className={classNames(
                             location.pathname === item.href
-                              ? "text-indigo-600"
-                              : "text-gray-400 group-hover:text-indigo-600",
+                              ? "text-primary"
+                              : "text-gray-400 group-hover:text-primary",
                             "size-6 shrink-0"
                           )}
                         />

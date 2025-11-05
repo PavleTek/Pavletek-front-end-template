@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #7ad9c5;
+  --color-secondary: #220070;
+}
+
+@variant dark {
+  --color-primary: #44bfa3; /* lighter turquoise for dark mode */
+  --color-secondary: #b7a7ff; /* softer purple for dark mode */
+}

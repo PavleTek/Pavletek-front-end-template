@@ -366,6 +366,29 @@ const AppSettings: React.FC = () => {
       : "bg-blue-100 text-blue-800";
   };
 
+  const hasEmailFormChanges = (): boolean => {
+    if (!isEditMode || !selectedEmail) {
+      return true; // Always show button in create mode
+    }
+
+    // Compare current form data with original email data
+    const originalAliases = selectedEmail.aliases || [];
+    const currentAliases = emailFormData.aliases || [];
+    
+    // Check if arrays are different (order doesn't matter, but we'll do simple comparison)
+    const aliasesChanged = 
+      originalAliases.length !== currentAliases.length ||
+      !originalAliases.every(alias => currentAliases.includes(alias)) ||
+      !currentAliases.every(alias => originalAliases.includes(alias));
+
+    return (
+      emailFormData.email !== selectedEmail.email ||
+      emailFormData.emailProvider !== selectedEmail.emailProvider ||
+      emailFormData.refreshToken !== (selectedEmail.refreshToken || "") ||
+      aliasesChanged
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -638,13 +661,15 @@ const AppSettings: React.FC = () => {
                     >
                       Cancel
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveEmail}
-                      className="ml-4 inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 cursor-pointer"
-                    >
-                      {isEditMode ? "Update" : "Create"}
-                    </button>
+                    {(!isEditMode || hasEmailFormChanges()) && (
+                      <button
+                        type="button"
+                        onClick={handleSaveEmail}
+                        className="ml-4 inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 cursor-pointer"
+                      >
+                        {isEditMode ? "Save Changes" : "Create"}
+                      </button>
+                    )}
                   </div>
                 </form>
               </DialogPanel>
@@ -770,6 +795,7 @@ const AppSettings: React.FC = () => {
                                   id="toEmail"
                                   name="toEmail"
                                   type="email"
+                                  autoComplete="email to"
                                   value={toEmailInput}
                                   onChange={(e) => setToEmailInput(e.target.value)}
                                   onKeyPress={(e) => {
@@ -821,6 +847,7 @@ const AppSettings: React.FC = () => {
                                   id="ccEmail"
                                   name="ccEmail"
                                   type="email"
+                                  autoComplete="email-cc"
                                   value={ccEmailInput}
                                   onChange={(e) => setCcEmailInput(e.target.value)}
                                   onKeyPress={(e) => {
@@ -872,6 +899,7 @@ const AppSettings: React.FC = () => {
                                   id="bccEmail"
                                   name="bccEmail"
                                   type="email"
+                                  autoComplete="email-bcc"
                                   value={bccEmailInput}
                                   onChange={(e) => setBccEmailInput(e.target.value)}
                                   onKeyPress={(e) => {

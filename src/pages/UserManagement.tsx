@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
-import { XMarkIcon } from "@heroicons/react/24/outline";
-import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { XMarkIcon, KeyIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react";
 import { userService } from "../services/userService";
 import { roleService } from "../services/roleService";
-import type { User, Role, UpdateUserRequest } from "../types";
+import type { User, Role, UpdateUserRequest, CreateUserRequest } from "../types";
+import SuccessBanner from "../components/SuccessBanner";
+import ErrorBanner from "../components/ErrorBanner";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -15,6 +17,8 @@ const UserManagement: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -32,7 +36,7 @@ const UserManagement: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedUser && !isEditMode) {
+    if (selectedUser && !isEditMode && !isCreateMode) {
       setFormData({
         username: selectedUser.username || "",
         email: selectedUser.email || "",
@@ -45,7 +49,7 @@ const UserManagement: React.FC = () => {
         roleIds: roles.filter((r) => selectedUser.roles.includes(r.name)).map((r) => r.id),
       });
     }
-  }, [selectedUser, isEditMode, roles]);
+  }, [selectedUser, isEditMode, isCreateMode, roles]);
 
   const loadData = async () => {
     try {
@@ -64,6 +68,27 @@ const UserManagement: React.FC = () => {
   const openUserDialog = (user: User) => {
     setSelectedUser(user);
     setIsEditMode(false);
+    setIsCreateMode(false);
+    setOpen(true);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const openCreateDialog = () => {
+    setSelectedUser(null);
+    setIsEditMode(true);
+    setIsCreateMode(true);
+    setFormData({
+      username: "",
+      email: "",
+      name: "",
+      lastName: "",
+      chileanRutNumber: "",
+      color: "#3285a8",
+      password: "",
+      confirmPassword: "",
+      roleIds: [],
+    });
     setOpen(true);
     setError(null);
     setSuccess(null);
@@ -73,8 +98,8 @@ const UserManagement: React.FC = () => {
     setOpen(false);
     setSelectedUser(null);
     setIsEditMode(false);
-    setError(null);
-    setSuccess(null);
+    setIsCreateMode(false);
+    // Don't clear page-level error/success states here - they should persist after dialog closes
   };
 
   const handleEdit = () => {
@@ -84,64 +109,124 @@ const UserManagement: React.FC = () => {
   };
 
   const handleCancel = () => {
-    setIsEditMode(false);
-    if (selectedUser) {
-      setFormData({
-        username: selectedUser.username || "",
-        email: selectedUser.email || "",
-        name: selectedUser.name || "",
-        lastName: selectedUser.lastName || "",
-        chileanRutNumber: selectedUser.chileanRutNumber || "",
-        color: selectedUser.color || "#3285a8",
-        password: "",
-        confirmPassword: "",
-        roleIds: roles.filter((r) => selectedUser.roles.includes(r.name)).map((r) => r.id),
-      });
+    if (isCreateMode) {
+      closeDialog();
+    } else {
+      setIsEditMode(false);
+      if (selectedUser) {
+        setFormData({
+          username: selectedUser.username || "",
+          email: selectedUser.email || "",
+          name: selectedUser.name || "",
+          lastName: selectedUser.lastName || "",
+          chileanRutNumber: selectedUser.chileanRutNumber || "",
+          color: selectedUser.color || "#3285a8",
+          password: "",
+          confirmPassword: "",
+          roleIds: roles.filter((r) => selectedUser.roles.includes(r.name)).map((r) => r.id),
+        });
+      }
+      setError(null);
+      setSuccess(null);
     }
-    setError(null);
-    setSuccess(null);
+  };
+
+  const generatePassword = () => {
+    const length = 16;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setFormData({ ...formData, password });
   };
 
   const handleSave = async () => {
+    try {
+      setError(null);
+
+      if (isCreateMode) {
+        // Create new user
+        if (!formData.password) {
+          setError("Password is required");
+          return;
+        }
+
+        const createData: CreateUserRequest = {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          name: formData.name || undefined,
+          lastName: formData.lastName || undefined,
+          chileanRutNumber: formData.chileanRutNumber || undefined,
+          roleIds: formData.roleIds.length > 0 ? formData.roleIds : undefined,
+        };
+
+        const newUser = await userService.createUser(createData);
+        
+        // Update color after creation if provided
+        if (formData.color && formData.color !== "#3285a8") {
+          await userService.updateUser(newUser.user.id, { color: formData.color });
+        }
+
+        setSuccess("User created successfully");
+        await loadData();
+        closeDialog();
+      } else {
+        // Update existing user
+        if (!selectedUser) return;
+
+        // Update basic user info including color
+        const updateData: UpdateUserRequest = {
+          username: formData.username,
+          email: formData.email,
+          name: formData.name,
+          lastName: formData.lastName,
+          chileanRutNumber: formData.chileanRutNumber,
+          color: formData.color,
+        };
+        await userService.updateUser(selectedUser.id, updateData);
+
+        // Update password if provided
+        if (formData.password) {
+          if (formData.password !== formData.confirmPassword) {
+            setError("Passwords do not match");
+            return;
+          }
+          await userService.changeUserPassword(selectedUser.id, formData.password);
+        }
+
+        // Update roles
+        await userService.changeUserRoles(selectedUser.id, formData.roleIds);
+
+        setSuccess("User updated successfully");
+        setIsEditMode(false);
+        await loadData();
+        // Refresh selected user from updated list
+        const updatedUsers = await userService.getAllUsers();
+        const updatedUser = updatedUsers.users.find((u) => u.id === selectedUser.id);
+        if (updatedUser) {
+          setSelectedUser(updatedUser);
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || (isCreateMode ? "Failed to create user" : "Failed to update user"));
+    }
+  };
+
+  const handleDelete = async () => {
     if (!selectedUser) return;
 
     try {
       setError(null);
-
-      // Update basic user info including color
-      const updateData: UpdateUserRequest = {
-        username: formData.username,
-        email: formData.email,
-        name: formData.name,
-        lastName: formData.lastName,
-        chileanRutNumber: formData.chileanRutNumber,
-        color: formData.color,
-      };
-      await userService.updateUser(selectedUser.id, updateData);
-
-      // Update password if provided
-      if (formData.password) {
-        if (formData.password !== formData.confirmPassword) {
-          setError("Passwords do not match");
-          return;
-        }
-        await userService.changeUserPassword(selectedUser.id, formData.password);
-      }
-
-      // Update roles
-      await userService.changeUserRoles(selectedUser.id, formData.roleIds);
-
-      setSuccess("User updated successfully");
-      setIsEditMode(false);
+      await userService.deleteUser(selectedUser.id);
+      setDeleteDialogOpen(false);
+      closeDialog();
       await loadData();
-      // Refresh selected user from updated list
-      const updatedUsers = await userService.getAllUsers();
-      const updatedUser = updatedUsers.users.find((u) => u.id === selectedUser.id);
-      if (updatedUser) {
-        setSelectedUser(updatedUser);
-      }
+      setSuccess("User deleted successfully");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to update user");
+      setError(err.response?.data?.error || "Failed to delete user");
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -198,9 +283,25 @@ const UserManagement: React.FC = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+        <button
+          type="button"
+          onClick={openCreateDialog}
+          className="inline-flex items-center gap-x-2 rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 cursor-pointer"
+        >
+          Create User
+        </button>
       </div>
 
-      {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">{error}</div>}
+      {error && (
+        <div className="mb-4">
+          <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        </div>
+      )}
+      {success && (
+        <div className="mb-4">
+          <SuccessBanner message={success} onDismiss={() => setSuccess(null)} />
+        </div>
+      )}
 
       <ul
         role="list"
@@ -285,7 +386,7 @@ const UserManagement: React.FC = () => {
                     <div className="bg-primary-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <DialogTitle className="text-base font-semibold text-white">
-                          {selectedUser ? `${selectedUser.name} ${selectedUser.lastName}` : "User Details"}
+                          {isCreateMode ? "Create New User" : selectedUser ? `${selectedUser.name} ${selectedUser.lastName}` : "User Details"}
                         </DialogTitle>
                         <div className="ml-3 flex h-7 items-center">
                           <button
@@ -301,7 +402,9 @@ const UserManagement: React.FC = () => {
                       </div>
                       <div className="mt-1">
                         <p className="text-sm text-primary-100">
-                          {isEditMode
+                          {isCreateMode
+                            ? "Fill in the information below to create a new user."
+                            : isEditMode
                             ? "Edit user information below."
                             : "View and manage user information and settings."}
                         </p>
@@ -324,63 +427,67 @@ const UserManagement: React.FC = () => {
                     )}
 
                     <div className="flex flex-1 flex-col justify-between">
-                      <div className="divide-y divide-gray-200 px-4 sm:px-6">
-                        <div className="space-y-6 pt-6 pb-5">
-                          {selectedUser && (
-                            <>
-                              {/* Profile Section */}
-                              <div>
-                                <label htmlFor="username" className="block text-sm/6 font-medium text-gray-900">
+                      <div>
+                        {(selectedUser || isCreateMode) && (
+                          <>
+                            {/* Profile Section */}
+                            <div className="border-b border-gray-200">
+                              <div className="px-4 py-5 sm:px-6">
+                                <label htmlFor="username" className="block text-base font-semibold text-gray-900 mb-2">
                                   Username
                                 </label>
-                                <div className="mt-2">
-                                  {isEditMode ? (
+                                <div>
+                                  {isEditMode || isCreateMode ? (
                                     <input
                                       id="username"
                                       name="username"
                                       type="text"
                                       value={formData.username}
                                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 sm:text-sm/6"
+                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
                                     />
                                   ) : (
                                     <p className="text-sm text-gray-900">{formData.username}</p>
                                   )}
                                 </div>
                               </div>
+                            </div>
 
-                              <div>
-                                <label htmlFor="email" className="block text-sm/6 font-medium text-gray-900">
+                            <div className="border-b border-gray-200 bg-gray-50/50">
+                              <div className="px-4 py-5 sm:px-6">
+                                <label htmlFor="email" className="block text-base font-semibold text-gray-900 mb-2">
                                   Email
                                 </label>
-                                <div className="mt-2">
-                                  {isEditMode ? (
+                                <div>
+                                  {isEditMode || isCreateMode ? (
                                     <input
                                       id="email"
                                       name="email"
                                       type="email"
                                       value={formData.email}
                                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 sm:text-sm/6"
+                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
                                     />
                                   ) : (
                                     <p className="text-sm text-gray-900">{formData.email}</p>
                                   )}
                                 </div>
                               </div>
+                            </div>
 
-                              <div>
-                                <label htmlFor="avatar" className="block text-sm/6 font-medium text-gray-900">
+                            <div className="border-b border-gray-200">
+                              <div className="px-4 py-5 sm:px-6">
+                                <label htmlFor="avatar" className="block text-base font-semibold text-gray-900 mb-2">
                                   Avatar Color
                                 </label>
-                                <div className="mt-2 flex items-center gap-x-3">
+                                <div className="flex items-center gap-x-3">
                                   <div
                                     className="size-12 flex-none rounded-full flex items-center justify-center text-white font-semibold text-sm"
                                     style={{ backgroundColor: formData.color }}
                                   >
                                     {getInitials(formData.name, formData.lastName)}
                                   </div>
-                                  {isEditMode ? (
+                                  {(isEditMode || isCreateMode) ? (
                                     <input
                                       id="color"
                                       name="color"
@@ -392,110 +499,134 @@ const UserManagement: React.FC = () => {
                                   ) : null}
                                 </div>
                               </div>
+                            </div>
 
-                              {/* Personal Information */}
-                              <div>
-                                <label htmlFor="first-name" className="block text-sm/6 font-medium text-gray-900">
+                            {/* Personal Information */}
+                            <div className="border-b border-gray-200 bg-gray-50/50">
+                              <div className="px-4 py-5 sm:px-6">
+                                <label htmlFor="first-name" className="block text-base font-semibold text-gray-900 mb-2">
                                   First name
                                 </label>
-                                <div className="mt-2">
-                                  {isEditMode ? (
+                                <div>
+                                  {isEditMode || isCreateMode ? (
                                     <input
                                       id="first-name"
                                       name="first-name"
                                       type="text"
                                       value={formData.name}
                                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 sm:text-sm/6"
+                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
                                     />
                                   ) : (
                                     <p className="text-sm text-gray-900">{formData.name || "N/A"}</p>
                                   )}
                                 </div>
                               </div>
+                            </div>
 
-                              <div>
-                                <label htmlFor="last-name" className="block text-sm/6 font-medium text-gray-900">
+                            <div className="border-b border-gray-200">
+                              <div className="px-4 py-5 sm:px-6">
+                                <label htmlFor="last-name" className="block text-base font-semibold text-gray-900 mb-2">
                                   Last name
                                 </label>
-                                <div className="mt-2">
-                                  {isEditMode ? (
+                                <div>
+                                  {isEditMode || isCreateMode ? (
                                     <input
                                       id="last-name"
                                       name="last-name"
                                       type="text"
                                       value={formData.lastName}
                                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 sm:text-sm/6"
+                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
                                     />
                                   ) : (
                                     <p className="text-sm text-gray-900">{formData.lastName || "N/A"}</p>
                                   )}
                                 </div>
                               </div>
+                            </div>
 
-                              <div>
-                                <label htmlFor="rut" className="block text-sm/6 font-medium text-gray-900">
+                            <div className="border-b border-gray-200 bg-gray-50/50">
+                              <div className="px-4 py-5 sm:px-6">
+                                <label htmlFor="rut" className="block text-base font-semibold text-gray-900 mb-2">
                                   Chilean RUT Number
                                 </label>
-                                <div className="mt-2">
-                                  {isEditMode ? (
+                                <div>
+                                  {isEditMode || isCreateMode ? (
                                     <input
                                       id="rut"
                                       name="rut"
                                       type="text"
                                       value={formData.chileanRutNumber}
                                       onChange={(e) => setFormData({ ...formData, chileanRutNumber: e.target.value })}
-                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 sm:text-sm/6"
+                                      className="block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
                                     />
                                   ) : (
                                     <p className="text-sm text-gray-900">{formData.chileanRutNumber || "N/A"}</p>
                                   )}
                                 </div>
                               </div>
+                            </div>
 
-                              {/* Security & Roles */}
-                              {isEditMode && (
-                                <>
-                                  <div>
-                                    <label htmlFor="password" className="block text-sm/6 font-medium text-gray-900">
-                                      New Password (leave blank to keep current)
+                            {/* Security & Roles */}
+                            {(isEditMode || isCreateMode) && (
+                              <>
+                                <div className="border-b border-gray-200">
+                                  <div className="px-4 py-5 sm:px-6">
+                                    <label htmlFor="password" className="block text-base font-semibold text-gray-900 mb-2">
+                                      {isCreateMode ? "Password" : "New Password (leave blank to keep current)"}
                                     </label>
-                                    <div className="mt-2">
+                                    <div className="flex gap-2">
                                       <input
                                         id="password"
                                         name="password"
-                                        type="password"
+                                        type={isCreateMode ? "text" : "password"}
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 sm:text-sm/6"
+                                        className="block flex-1 rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
                                       />
+                                      {isCreateMode && (
+                                        <button
+                                          type="button"
+                                          onClick={generatePassword}
+                                          className="inline-flex items-center justify-center rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 cursor-pointer"
+                                          title="Generate random password"
+                                        >
+                                          <KeyIcon className="size-5" />
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
-                                  <div>
-                                    <label
-                                      htmlFor="confirm-password"
-                                      className="block text-sm/6 font-medium text-gray-900"
-                                    >
-                                      Confirm Password
-                                    </label>
-                                    <div className="mt-2">
-                                      <input
-                                        id="confirm-password"
-                                        name="confirm-password"
-                                        type="password"
-                                        value={formData.confirmPassword}
-                                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                                        className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 sm:text-sm/6"
-                                      />
+                                </div>
+                                {!isCreateMode && (
+                                  <div className="border-b border-gray-200 bg-gray-50/50">
+                                    <div className="px-4 py-5 sm:px-6">
+                                      <label
+                                        htmlFor="confirm-password"
+                                        className="block text-base font-semibold text-gray-900 mb-2"
+                                      >
+                                        Confirm Password
+                                      </label>
+                                      <div>
+                                        <input
+                                          id="confirm-password"
+                                          name="confirm-password"
+                                          type="password"
+                                          value={formData.confirmPassword}
+                                          onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                          className="block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
+                                        />
+                                      </div>
                                     </div>
                                   </div>
-                                </>
-                              )}
+                                )}
+                              </>
+                            )}
 
-                              <fieldset>
-                                <legend className="text-sm/6 font-medium text-gray-900">Roles</legend>
-                                <div className="mt-2 space-y-4">
+                            <fieldset className="border-b border-gray-200">
+                              <div className="px-4 py-5 sm:px-6">
+                                <legend className="block text-base font-semibold text-gray-900 mb-2">Roles</legend>
+                                <div className="space-y-4">
                                   {roles.map((role) => (
                                     <div key={role.id} className="relative flex items-start">
                                       <div className="absolute flex h-6 items-center">
@@ -506,7 +637,7 @@ const UserManagement: React.FC = () => {
                                             type="checkbox"
                                             checked={formData.roleIds.includes(role.id)}
                                             onChange={(e) => {
-                                              if (isEditMode) {
+                                              if (isEditMode || isCreateMode) {
                                                 if (e.target.checked) {
                                                   setFormData({ ...formData, roleIds: [...formData.roleIds, role.id] });
                                                 } else {
@@ -517,8 +648,8 @@ const UserManagement: React.FC = () => {
                                                 }
                                               }
                                             }}
-                                            disabled={!isEditMode}
-                                            className={`col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-primary-600 checked:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 ${isEditMode ? "cursor-pointer" : ""}`}
+                                            disabled={!isEditMode && !isCreateMode}
+                                            className={`col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-primary-600 checked:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 ${(isEditMode || isCreateMode) ? "cursor-pointer" : ""}`}
                                           />
                                           <svg
                                             fill="none"
@@ -537,62 +668,128 @@ const UserManagement: React.FC = () => {
                                         </div>
                                       </div>
                                       <div className="pl-7 text-sm/6">
-                                        <label htmlFor={`role-${role.id}`} className="font-medium text-gray-900 cursor-pointer">
+                                        <label htmlFor={`role-${role.id}`} className={`font-medium text-gray-900 ${(isEditMode || isCreateMode) ? "cursor-pointer" : ""}`}>
                                           {role.name}
                                         </label>
                                       </div>
                                     </div>
                                   ))}
                                 </div>
-                              </fieldset>
+                              </div>
+                            </fieldset>
 
-                              {!isEditMode && (
-                                <div className="space-y-2 text-sm">
-                                  <p>
-                                    <span className="font-medium">Created:</span> {formatDate(selectedUser.createdAt)}
+                            {!isEditMode && !isCreateMode && selectedUser && (
+                              <div className="border-b border-gray-200">
+                                <div className="px-4 py-5 sm:px-6 space-y-2">
+                                  <p className="text-sm text-gray-900">
+                                    <span className="text-base font-semibold text-gray-900">Created:</span> {formatDate(selectedUser.createdAt)}
                                   </p>
-                                  <p>
-                                    <span className="font-medium">Last Login:</span>{" "}
+                                  <p className="text-sm text-gray-900">
+                                    <span className="text-base font-semibold text-gray-900">Last Login:</span>{" "}
                                     {formatLastLogin(selectedUser.lastLogin).text}
                                   </p>
                                 </div>
-                              )}
-                            </>
-                          )}
-                        </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 justify-end px-4 py-4">
-                    <button
-                      type="button"
-                      onClick={isEditMode ? handleCancel : closeDialog}
-                      className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 cursor-pointer"
-                    >
-                      {isEditMode ? "Cancel" : "Close"}
-                    </button>
-                    {isEditMode ? (
+                  <div className="flex shrink-0 justify-between items-center px-4 py-4">
+                    {!isCreateMode && selectedUser && (
                       <button
                         type="button"
-                        onClick={handleSave}
-                        className="ml-4 inline-flex justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 cursor-pointer"
+                        onClick={() => setDeleteDialogOpen(true)}
+                        className="inline-flex justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 cursor-pointer"
                       >
-                        Save
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleEdit}
-                        className="ml-4 inline-flex justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 cursor-pointer"
-                      >
-                        Edit
+                        Delete User
                       </button>
                     )}
+                    {isCreateMode && <div />}
+                    <div className="flex gap-x-3 ml-auto">
+                      <button
+                        type="button"
+                        onClick={isEditMode || isCreateMode ? handleCancel : closeDialog}
+                        className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 cursor-pointer"
+                      >
+                        {isEditMode || isCreateMode ? "Cancel" : "Close"}
+                      </button>
+                      {isEditMode || isCreateMode ? (
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          className="inline-flex justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 cursor-pointer"
+                        >
+                          {isCreateMode ? "Create" : "Save"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleEdit}
+                          className="inline-flex justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </form>
               </DialogPanel>
             </div>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={setDeleteDialogOpen} className="relative z-50">
+        <DialogBackdrop
+          transition
+          className="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+        />
+
+        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <DialogPanel
+              transition
+              className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-lg data-closed:sm:translate-y-0 data-closed:sm:scale-95"
+            >
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:size-10">
+                    <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-red-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <DialogTitle as="h3" className="text-base font-semibold text-gray-900">
+                      Delete user
+                    </DialogTitle>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure you want to delete {selectedUser ? `${selectedUser.name} ${selectedUser.lastName}` : "this user"}? All of their data will be permanently removed. This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-red-500 sm:ml-3 sm:w-auto cursor-pointer"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  data-autofocus
+                  onClick={() => setDeleteDialogOpen(false)}
+                  className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </DialogPanel>
           </div>
         </div>
       </Dialog>

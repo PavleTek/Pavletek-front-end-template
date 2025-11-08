@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../services/authService";
 import type { UpdateUserRequest } from "../types";
+import SuccessBanner from "../components/SuccessBanner";
+import ErrorBanner from "../components/ErrorBanner";
 
 const Profile: React.FC = () => {
   const { user, updateUser } = useAuth();
@@ -123,8 +125,16 @@ const Profile: React.FC = () => {
 
   return (
     <div>
-      {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">{error}</div>}
-      {success && <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md text-green-700">{success}</div>}
+      {error && (
+        <div className="mb-4">
+          <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        </div>
+      )}
+      {success && (
+        <div className="mb-4">
+          <SuccessBanner message={success} onDismiss={() => setSuccess(null)} />
+        </div>
+      )}
 
       <div className="px-4 sm:px-0">
         <div className="flex justify-between items-center">

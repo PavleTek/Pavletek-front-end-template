@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { XMarkIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
-import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { XMarkIcon, TrashIcon, PencilIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react";
 import { emailService } from "../services/emailService";
 import type {
   EmailSender,
@@ -9,6 +9,8 @@ import type {
   UpdateEmailRequest,
   SendTestEmailRequest,
 } from "../types";
+import SuccessBanner from "../components/SuccessBanner";
+import ErrorBanner from "../components/ErrorBanner";
 
 const AppSettings: React.FC = () => {
   const [emails, setEmails] = useState<EmailSender[]>([]);
@@ -44,6 +46,10 @@ const AppSettings: React.FC = () => {
   const [ccEmailInput, setCcEmailInput] = useState("");
   const [bccEmailInput, setBccEmailInput] = useState("");
   const [selectedAlias, setSelectedAlias] = useState("");
+
+  // Delete email confirmation dialog state
+  const [deleteEmailDialogOpen, setDeleteEmailDialogOpen] = useState(false);
+  const [emailToDelete, setEmailToDelete] = useState<EmailSender | null>(null);
 
   useEffect(() => {
     loadEmails();
@@ -135,17 +141,25 @@ const AppSettings: React.FC = () => {
     }
   };
 
-  const handleDeleteEmail = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this email sender?")) {
-      return;
-    }
+  const openDeleteEmailDialog = (email: EmailSender) => {
+    setEmailToDelete(email);
+    setDeleteEmailDialogOpen(true);
+  };
+
+  const handleDeleteEmail = async () => {
+    if (!emailToDelete) return;
 
     try {
-      await emailService.deleteEmail(id);
+      setError(null);
+      await emailService.deleteEmail(emailToDelete.id);
       setSuccess("Email sender deleted successfully");
+      setDeleteEmailDialogOpen(false);
+      setEmailToDelete(null);
       await loadEmails();
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to delete email sender");
+      setDeleteEmailDialogOpen(false);
+      setEmailToDelete(null);
     }
   };
 
@@ -418,9 +432,15 @@ const AppSettings: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900">App Settings</h1>
       </div>
 
-      {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">{error}</div>}
+      {error && (
+        <div className="mb-4">
+          <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        </div>
+      )}
       {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md text-green-700">{success}</div>
+        <div className="mb-4">
+          <SuccessBanner message={success} onDismiss={() => setSuccess(null)} />
+        </div>
       )}
 
       {/* Email Senders Section */}
@@ -475,7 +495,7 @@ const AppSettings: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteEmail(email.id)}
+                          onClick={() => openDeleteEmailDialog(email)}
                           className="text-gray-400 hover:text-red-600 cursor-pointer"
                         >
                           <TrashIcon className="size-5" />
@@ -1075,6 +1095,61 @@ const AppSettings: React.FC = () => {
                 </form>
               </DialogPanel>
             </div>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Delete Email Confirmation Dialog */}
+      <Dialog open={deleteEmailDialogOpen} onClose={setDeleteEmailDialogOpen} className="relative z-50">
+        <DialogBackdrop
+          transition
+          className="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+        />
+
+        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <DialogPanel
+              transition
+              className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-lg data-closed:sm:translate-y-0 data-closed:sm:scale-95"
+            >
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:size-10">
+                    <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-red-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <DialogTitle as="h3" className="text-base font-semibold text-gray-900">
+                      Delete email sender
+                    </DialogTitle>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure you want to delete {emailToDelete?.email}? All of its data will be permanently removed. This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <button
+                  type="button"
+                  onClick={handleDeleteEmail}
+                  className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-red-500 sm:ml-3 sm:w-auto cursor-pointer"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  data-autofocus
+                  onClick={() => {
+                    setDeleteEmailDialogOpen(false);
+                    setEmailToDelete(null);
+                  }}
+                  className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </DialogPanel>
           </div>
         </div>
       </Dialog>

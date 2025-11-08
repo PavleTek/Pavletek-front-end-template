@@ -120,8 +120,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                             }}
                             className={classNames(
                               location.pathname === item.href
-                                ? "bg-gray-50 text-primary"
-                                : "text-gray-700 hover:bg-gray-50 hover:text-primary",
+                                ? "bg-gray-50 text-primary-800"
+                                : "text-gray-700 hover:bg-gray-50 hover:text-primary-800",
                               "group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold w-full text-left"
                             )}
                           >
@@ -129,8 +129,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                               aria-hidden={true}
                               className={classNames(
                                 location.pathname === item.href
-                                  ? "text-primary"
-                                  : "text-gray-400 group-hover:text-primary",
+                                  ? "text-primary-800"
+                                  : "text-gray-400 group-hover:text-primary-800",
                                 "size-6 shrink-0"
                               )}
                             />
@@ -147,11 +147,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           navigate("/settings");
                           setSidebarOpen(false);
                         }}
-                        className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary w-full text-left"
+                        className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary-800 w-full text-left"
                       >
                         <Cog6ToothIcon
                           aria-hidden={true}
-                          className="size-6 shrink-0 text-gray-400 group-hover:text-primary"
+                          className="size-6 shrink-0 text-gray-400 group-hover:text-primary-800"
                         />
                         Settings
                       </button>
@@ -181,15 +181,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         onClick={() => navigate(item.href)}
                         className={classNames(
                           location.pathname === item.href
-                            ? "bg-gray-50 text-primary"
-                            : "text-gray-700 hover:bg-gray-50 hover:text-primary",
+                            ? "bg-gray-50 text-primary-800"
+                            : "text-gray-700 hover:bg-gray-50 hover:text-primary-800",
                           "group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold w-full text-left"
                         )}
                       >
                         <item.icon
                           aria-hidden={true}
                           className={classNames(
-                            location.pathname === item.href ? "text-primary" : "text-gray-400 group-hover:text-primary",
+                            location.pathname === item.href ? "text-primary-800" : "text-gray-400 group-hover:text-primary-800",
                             "size-6 shrink-0"
                           )}
                         />
@@ -203,11 +203,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <li className="mt-auto">
                   <button
                     onClick={() => navigate("/settings")}
-                    className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gFray-700 hover:bg-gray-50 hover:text-primary w-full text-left"
+                    className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gFray-700 hover:bg-gray-50 hover:text-primary-800 w-full text-left"
                   >
                     <Cog6ToothIcon
                       aria-hidden={true}
-                      className="size-6 shrink-0 text-gray-400 group-hover:text-primary"
+                      className="size-6 shrink-0 text-gray-400 group-hover:text-primary-800"
                     />
                     Settings
                   </button>

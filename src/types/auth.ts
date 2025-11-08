@@ -28,6 +28,7 @@ export interface AuthContextType {
   token: string | null;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
+  updateUser: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
   hasRole: (roleName: string) => boolean;

@@ -75,8 +75,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     navigate("/login");
   };
 
+  const getInitials = (name?: string, lastName?: string): string => {
+    const firstInitial = name?.charAt(0)?.toUpperCase() || "";
+    const lastInitial = lastName?.charAt(0)?.toUpperCase() || "";
+    return firstInitial + lastInitial || "U";
+  };
+
   const userNavigation = [
-    { name: "Your profile", href: "#", onClick: () => {} },
+    { name: "Your profile", href: "#", onClick: () => navigate("/profile") },
     { name: "Sign out", href: "#", onClick: handleLogout },
   ];
 
@@ -203,7 +209,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <li className="mt-auto">
                   <button
                     onClick={() => navigate("/settings")}
-                    className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gFray-700 hover:bg-gray-50 hover:text-primary-800 w-full text-left"
+                    className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary-800 w-full text-left"
                   >
                     <Cog6ToothIcon
                       aria-hidden={true}
@@ -247,11 +253,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <MenuButton className="relative flex items-center">
                   <span className="absolute -inset-1.5" />
                   <span className="sr-only">Open user menu</span>
-                  <img
-                    alt=""
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                    className="size-8 rounded-full bg-gray-50 outline -outline-offset-1 outline-black/5"
-                  />
+                  <div
+                    className="size-8 rounded-full flex items-center justify-center text-white font-semibold text-sm outline -outline-offset-1 outline-black/5"
+                    style={{ backgroundColor: user?.color || "#3285a8" }}
+                  >
+                    {getInitials(user?.name, user?.lastName)}
+                  </div>
                   <span className="hidden lg:flex lg:items-center">
                     <span aria-hidden={true} className="ml-4 text-sm/6 font-semibold text-gray-900">
                       {user?.name || "User"}

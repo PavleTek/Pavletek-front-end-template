@@ -1,5 +1,5 @@
 import api from './api';
-import type { LoginRequest, LoginResponse, User } from '../types';
+import type { LoginRequest, LoginResponse, User, UpdateUserRequest, ApiResponse } from '../types';
 
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -10,6 +10,15 @@ export const authService = {
   async getProfile(): Promise<{ user: User }> {
     const response = await api.get('/auth/profile');
     return response.data;
+  },
+
+  async updateProfile(data: UpdateUserRequest): Promise<{ user: User }> {
+    const response = await api.put<ApiResponse & { user: User }>('/auth/profile', data);
+    return response.data;
+  },
+
+  async updatePassword(password: string): Promise<void> {
+    await api.put<ApiResponse>('/auth/profile/password', { password });
   },
 
   logout() {

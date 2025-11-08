@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Accounting from "./pages/Accounting";
 import UserManagement from "./pages/UserManagement";
 import AppSettings from "./pages/AppSettings";
+import Profile from "./pages/Profile";
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -59,6 +60,16 @@ const AppRoutes: React.FC = () => {
           <ProtectedRoute allowedRoles={["admin"]}>
             <DashboardLayout>
               <UserManagement />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Profile />
             </DashboardLayout>
           </ProtectedRoute>
         }

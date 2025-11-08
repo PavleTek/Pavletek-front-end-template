@@ -54,6 +54,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     authService.logout();
   };
 
+  const updateUser = async () => {
+    try {
+      const profileResponse = await authService.getProfile();
+      const updatedUser = profileResponse.user;
+      setUser(updatedUser);
+      authService.setStoredAuth(token!, updatedUser);
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      throw error;
+    }
+  };
+
   const hasRole = (roleName: string): boolean => {
     if (!user || !user.roles) return false;
     return user.roles.includes(roleName);
@@ -69,6 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token,
     login,
     logout,
+    updateUser,
     isAuthenticated: !!user && !!token,
     isLoading,
     hasRole,

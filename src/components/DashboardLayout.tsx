@@ -17,6 +17,7 @@ import {
   HomeIcon,
   XMarkIcon,
   UserGroupIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { useAuth } from "../contexts/AuthContext";
@@ -42,6 +43,11 @@ const navigationItems: NavigationItem[] = [
     href: "/accounting",
     icon: ChartPieIcon,
     allowedRoles: ["admin", "manager", "accountant"],
+  },
+  {
+    name: "PDF",
+    href: "/pdf-generator",
+    icon: DocumentTextIcon,
   },
 ];
 

@@ -9,6 +9,7 @@ import Accounting from "./pages/Accounting";
 import UserManagement from "./pages/UserManagement";
 import AppSettings from "./pages/AppSettings";
 import Profile from "./pages/Profile";
+import PDFGenerator from "./pages/PDFGenerator";
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -70,6 +71,16 @@ const AppRoutes: React.FC = () => {
           <ProtectedRoute>
             <DashboardLayout>
               <Profile />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pdf-generator"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <PDFGenerator />
             </DashboardLayout>
           </ProtectedRoute>
         }

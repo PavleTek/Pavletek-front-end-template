@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
 import { XMarkIcon, KeyIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react";
+import { useAuth } from "../contexts/AuthContext";
 import { userService } from "../services/userService";
 import { roleService } from "../services/roleService";
 import type { User, Role, UpdateUserRequest, CreateUserRequest } from "../types";
@@ -9,6 +10,7 @@ import SuccessBanner from "../components/SuccessBanner";
 import ErrorBanner from "../components/ErrorBanner";
 
 const UserManagement: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,9 +33,40 @@ const UserManagement: React.FC = () => {
     roleIds: [] as number[],
   });
 
+  // Ref to store the form element
+  const formRef = useRef<HTMLFormElement | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Handle Ctrl+Enter keyboard shortcut for save/create
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check if Ctrl+Enter (or Cmd+Enter on Mac) is pressed
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        // Only trigger if dialog is open and in edit/create mode
+        if (open && (isEditMode || isCreateMode)) {
+          event.preventDefault();
+          event.stopPropagation();
+          // Trigger form submission which will call handleSave via onSubmit
+          if (formRef.current) {
+            formRef.current.requestSubmit();
+          }
+        }
+      }
+    };
+
+    // Add event listener when dialog is open and in edit/create mode
+    if (open && (isEditMode || isCreateMode)) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, isEditMode, isCreateMode]);
 
   useEffect(() => {
     if (selectedUser && !isEditMode && !isCreateMode) {
@@ -163,7 +196,7 @@ const UserManagement: React.FC = () => {
         };
 
         const newUser = await userService.createUser(createData);
-        
+
         // Update color after creation if provided
         if (formData.color && formData.color !== "#3285a8") {
           await userService.updateUser(newUser.user.id, { color: formData.color });
@@ -303,10 +336,7 @@ const UserManagement: React.FC = () => {
         </div>
       )}
 
-      <ul
-        role="list"
-        className="divide-y divide-gray-100 overflow-hidden bg-white shadow-xs outline-1 outline-gray-900/5 sm:rounded-xl"
-      >
+      <ul role="list" className="divide-y divide-gray-100 overflow-hidden bg-white shadow-xs outline-1 outline-gray-900/5 sm:rounded-xl">
         {users.map((user) => {
           const { text: lastLoginText, isRecentlyActive } = formatLastLogin(user.lastLogin);
           const userColor = user.color || "#3285a8";
@@ -334,10 +364,7 @@ const UserManagement: React.FC = () => {
                     <div className="hidden sm:flex sm:flex-col sm:items-end">
                       <div className="flex flex-wrap gap-1.5 justify-end mb-1">
                         {user.roles.map((role) => (
-                          <span
-                            key={role}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800"
-                          >
+                          <span key={role} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">
                             {role}
                           </span>
                         ))}
@@ -381,7 +408,16 @@ const UserManagement: React.FC = () => {
                 transition
                 className="pointer-events-auto w-screen max-w-md transform transition duration-500 ease-in-out data-closed:translate-x-full sm:duration-700"
               >
-                <form className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl">
+                <form
+                  ref={formRef}
+                  className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (isEditMode || isCreateMode) {
+                      handleSave();
+                    }
+                  }}
+                >
                   <div className="h-0 flex-1 overflow-y-auto">
                     <div className="bg-primary-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
@@ -413,16 +449,8 @@ const UserManagement: React.FC = () => {
 
                     {(error || success) && (
                       <div className="px-4 sm:px-6 pt-4">
-                        {error && (
-                          <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-                            {error}
-                          </div>
-                        )}
-                        {success && (
-                          <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
-                            {success}
-                          </div>
-                        )}
+                        {error && <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">{error}</div>}
+                        {success && <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">{success}</div>}
                       </div>
                     )}
 
@@ -487,7 +515,7 @@ const UserManagement: React.FC = () => {
                                   >
                                     {getInitials(formData.name, formData.lastName)}
                                   </div>
-                                  {(isEditMode || isCreateMode) ? (
+                                  {isEditMode || isCreateMode ? (
                                     <input
                                       id="color"
                                       name="color"
@@ -601,10 +629,7 @@ const UserManagement: React.FC = () => {
                                 {!isCreateMode && (
                                   <div className="border-b border-gray-200 bg-gray-50/50">
                                     <div className="px-4 py-5 sm:px-6">
-                                      <label
-                                        htmlFor="confirm-password"
-                                        className="block text-base font-semibold text-gray-900 mb-2"
-                                      >
+                                      <label htmlFor="confirm-password" className="block text-base font-semibold text-gray-900 mb-2">
                                         Confirm Password
                                       </label>
                                       <div>
@@ -649,7 +674,9 @@ const UserManagement: React.FC = () => {
                                               }
                                             }}
                                             disabled={!isEditMode && !isCreateMode}
-                                            className={`col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-primary-600 checked:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 ${(isEditMode || isCreateMode) ? "cursor-pointer" : ""}`}
+                                            className={`col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-primary-600 checked:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 ${
+                                              isEditMode || isCreateMode ? "cursor-pointer" : ""
+                                            }`}
                                           />
                                           <svg
                                             fill="none"
@@ -658,17 +685,15 @@ const UserManagement: React.FC = () => {
                                               formData.roleIds.includes(role.id) ? "opacity-100" : "opacity-0"
                                             }`}
                                           >
-                                            <path
-                                              d="M3 8L6 11L11 3.5"
-                                              strokeWidth={2}
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                            />
+                                            <path d="M3 8L6 11L11 3.5" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                                           </svg>
                                         </div>
                                       </div>
                                       <div className="pl-7 text-sm/6">
-                                        <label htmlFor={`role-${role.id}`} className={`font-medium text-gray-900 ${(isEditMode || isCreateMode) ? "cursor-pointer" : ""}`}>
+                                        <label
+                                          htmlFor={`role-${role.id}`}
+                                          className={`font-medium text-gray-900 ${isEditMode || isCreateMode ? "cursor-pointer" : ""}`}
+                                        >
                                           {role.name}
                                         </label>
                                       </div>
@@ -685,8 +710,7 @@ const UserManagement: React.FC = () => {
                                     <span className="text-base font-semibold text-gray-900">Created:</span> {formatDate(selectedUser.createdAt)}
                                   </p>
                                   <p className="text-sm text-gray-900">
-                                    <span className="text-base font-semibold text-gray-900">Last Login:</span>{" "}
-                                    {formatLastLogin(selectedUser.lastLogin).text}
+                                    <span className="text-base font-semibold text-gray-900">Last Login:</span> {formatLastLogin(selectedUser.lastLogin).text}
                                   </p>
                                 </div>
                               </div>
@@ -698,7 +722,7 @@ const UserManagement: React.FC = () => {
                   </div>
 
                   <div className="flex shrink-0 justify-between items-center px-4 py-4">
-                    {!isCreateMode && selectedUser && (
+                    {!isCreateMode && selectedUser && currentUser && selectedUser.id !== currentUser.id && (
                       <button
                         type="button"
                         onClick={() => setDeleteDialogOpen(true)}
@@ -707,6 +731,7 @@ const UserManagement: React.FC = () => {
                         Delete User
                       </button>
                     )}
+                    {!isCreateMode && (!selectedUser || !currentUser || selectedUser.id === currentUser.id) && <div />}
                     {isCreateMode && <div />}
                     <div className="flex gap-x-3 ml-auto">
                       <button
@@ -766,7 +791,8 @@ const UserManagement: React.FC = () => {
                     </DialogTitle>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Are you sure you want to delete {selectedUser ? `${selectedUser.name} ${selectedUser.lastName}` : "this user"}? All of their data will be permanently removed. This action cannot be undone.
+                        Are you sure you want to delete {selectedUser ? `${selectedUser.name} ${selectedUser.lastName}` : "this user"}? All of their data will
+                        be permanently removed. This action cannot be undone.
                       </p>
                     </div>
                   </div>

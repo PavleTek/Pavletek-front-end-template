@@ -117,7 +117,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleTwoFactorSetupComplete = async (result?: { token?: string; user?: any; backupCodes?: string[] }) => {
+  const handleTwoFactorSetupComplete = async (result?: { token?: string; user?: any }) => {
     if (result?.token && result?.user) {
       // Store auth data and complete login
       localStorage.setItem('token', result.token);

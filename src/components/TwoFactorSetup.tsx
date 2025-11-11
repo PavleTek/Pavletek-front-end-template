@@ -4,7 +4,7 @@ import SuccessBanner from './SuccessBanner';
 import ErrorBanner from './ErrorBanner';
 
 interface TwoFactorSetupProps {
-  onComplete?: (result?: { token?: string; user?: any; backupCodes?: string[] }) => void;
+  onComplete?: (result?: { token?: string; user?: any }) => void;
   onCancel?: () => void;
   tempToken?: string; // For mandatory setup during login
   isMandatory?: boolean; // If true, setup cannot be cancelled
@@ -14,7 +14,6 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel, t
   const [secret, setSecret] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [step, setStep] = useState<'setup' | 'verify' | 'complete'>('setup');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +50,6 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel, t
       if (tempToken && isMandatory) {
         // Mandatory setup during login - this completes the login
         const response = await twoFactorService.verifySetupMandatory(tempToken, secret, verificationCode);
-        setBackupCodes(response.backupCodes || []);
         setStep('complete');
         setSuccess('2FA enabled successfully!');
         
@@ -59,17 +57,15 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel, t
         if (onComplete && response.token && response.user) {
           onComplete({
             token: response.token,
-            user: response.user,
-            backupCodes: response.backupCodes
+            user: response.user
           });
         }
       } else {
         // Regular setup (from profile page)
-        const response = await twoFactorService.verifySetup({
+        await twoFactorService.verifySetup({
           secret,
           code: verificationCode
         });
-        setBackupCodes(response.backupCodes);
         setStep('complete');
         setSuccess('2FA enabled successfully!');
       }
@@ -97,25 +93,8 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel, t
             2FA Enabled Successfully!
           </h3>
           <p className="text-sm text-green-700 mb-4">
-            Your two-factor authentication has been enabled. Please save your backup codes in a safe place.
+            Your two-factor authentication has been enabled. If you lose access to your authenticator device, you can use the recovery code feature to regain access to your account.
           </p>
-          
-          <div className="bg-white rounded-md p-4 border border-green-300">
-            <h4 className="font-semibold text-sm text-gray-900 mb-2">Backup Codes</h4>
-            <p className="text-xs text-gray-600 mb-3">
-              Use these codes to access your account if you lose your authenticator device:
-            </p>
-            <div className="grid grid-cols-2 gap-2 font-mono text-sm">
-              {backupCodes.map((code, index) => (
-                <div key={index} className="bg-gray-50 p-2 rounded text-center">
-                  {code}
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-red-600 mt-3 font-semibold">
-              ⚠️ Save these codes now - they won't be shown again!
-            </p>
-          </div>
         </div>
 
         <div className="flex justify-end">

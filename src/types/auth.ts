@@ -135,6 +135,7 @@ export interface TwoFactorVerifyRequest {
 export interface TwoFactorStatusResponse {
   message: string;
   enabled: boolean;
+  userEnabled: boolean;
   systemEnabled: boolean;
 }
 
@@ -145,7 +146,6 @@ export interface TwoFactorVerifySetupRequest {
 
 export interface TwoFactorVerifySetupResponse {
   message: string;
-  backupCodes: string[];
   token?: string;
   user?: User;
 }

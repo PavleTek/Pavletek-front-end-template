@@ -16,6 +16,7 @@ const Profile: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [userTwoFactorEnabled, setUserTwoFactorEnabled] = useState(false);
   const [systemTwoFactorEnabled, setSystemTwoFactorEnabled] = useState(false);
   const [showTwoFactorSetup, setShowTwoFactorSetup] = useState(false);
   const [loading2FA, setLoading2FA] = useState(false);
@@ -51,6 +52,7 @@ const Profile: React.FC = () => {
     try {
       const status = await twoFactorService.getTwoFactorStatus();
       setTwoFactorEnabled(status.enabled);
+      setUserTwoFactorEnabled(status.userEnabled);
       setSystemTwoFactorEnabled(status.systemEnabled);
     } catch (err) {
       console.error('Failed to load 2FA status:', err);
@@ -391,9 +393,11 @@ const Profile: React.FC = () => {
                       <p className="text-xs text-gray-500 mt-1">
                         {systemTwoFactorEnabled
                           ? twoFactorEnabled
-                            ? 'Your account is protected with 2FA'
-                            : '2FA is required. Please set it up.'
-                          : '2FA is optional. Enable it for extra security.'}
+                            ? '2FA is required system-wide. Your account is protected with 2FA.'
+                            : '2FA is required system-wide. Please set it up.'
+                          : userTwoFactorEnabled
+                            ? 'You have enabled 2FA for your account. You can disable it at any time.'
+                            : '2FA is optional. Enable it for extra security.'}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -401,8 +405,9 @@ const Profile: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setShowDisable2FADialog(true)}
-                          disabled={loading2FA}
+                          disabled={loading2FA || systemTwoFactorEnabled}
                           className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={systemTwoFactorEnabled ? 'Cannot disable 2FA when system-wide 2FA is enabled' : ''}
                         >
                           {loading2FA ? 'Disabling...' : 'Disable'}
                         </button>
@@ -447,7 +452,9 @@ const Profile: React.FC = () => {
                     </DialogTitle>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Are you sure you want to disable two-factor authentication? This will make your account less secure. You can re-enable it at any time from your profile settings.
+                        {systemTwoFactorEnabled
+                          ? 'System-wide 2FA is enabled, so you cannot disable 2FA. If you need to reset your 2FA, please contact an administrator.'
+                          : 'Are you sure you want to disable two-factor authentication? This will make your account less secure. You can re-enable it at any time from your profile settings.'}
                       </p>
                     </div>
                   </div>

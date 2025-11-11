@@ -40,13 +40,12 @@ export const twoFactorService = {
       data
     );
     return {
-      message: response.data.message,
-      backupCodes: response.data.backupCodes
+      message: response.data.message
     };
   },
 
-  async verifySetupMandatory(tempToken: string, secret: string, code: string): Promise<LoginResponse & { backupCodes?: string[] }> {
-    const response = await api.post<ApiResponse & LoginResponse & { backupCodes?: string[] }>(
+  async verifySetupMandatory(tempToken: string, secret: string, code: string): Promise<LoginResponse> {
+    const response = await api.post<ApiResponse & LoginResponse>(
       '/auth/2fa/verify-setup-mandatory',
       { tempToken, secret, code }
     );
@@ -67,6 +66,7 @@ export const twoFactorService = {
     return {
       message: response.data.message,
       enabled: response.data.enabled,
+      userEnabled: response.data.userEnabled,
       systemEnabled: response.data.systemEnabled
     };
   },

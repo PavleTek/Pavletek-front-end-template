@@ -1,7 +1,17 @@
 @import "tailwindcss";
 
+html,
+body {
+  height: 100%;
+  overscroll-behavior: contain;
+}
+
+#root {
+  height: 100%;
+}
+
 @theme {
-  --color-primary-50:  #f2e8ff;
+  --color-primary-50: #f2e8ff;
   --color-primary-100: #d3bfff;
   --color-primary-200: #b497ff;
   --color-primary-300: #9570ff;
@@ -12,7 +22,7 @@
   --color-primary-800: #220070; /* base */
   --color-primary-900: #18004f;
 
-  --color-secondary-50:  #e6f9f4;
+  --color-secondary-50: #e6f9f4;
   --color-secondary-100: #c2efe3;
   --color-secondary-200: #9ee4d3;
   --color-secondary-300: #7ad9c5; /* base */

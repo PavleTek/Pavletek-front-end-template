@@ -75,29 +75,18 @@ export interface ApiResponse {
   [key: string]: any;
 }
 
-export type EmailProvider = 'GMAIL' | 'OUTLOOK';
-
 export interface EmailSender {
   id: number;
   email: string;
-  emailProvider: EmailProvider;
-  refreshToken?: string;
-  aliases?: string[];
   createdAt: string;
 }
 
 export interface CreateEmailRequest {
   email: string;
-  emailProvider: EmailProvider;
-  refreshToken?: string;
-  aliases?: string[];
 }
 
 export interface UpdateEmailRequest {
   email?: string;
-  emailProvider?: EmailProvider;
-  refreshToken?: string;
-  aliases?: string[];
 }
 
 export interface SendTestEmailRequest {
@@ -118,7 +107,6 @@ export interface Configuration {
   recoveryEmailSender?: {
     id: number;
     email: string;
-    aliases: string[];
   } | null;
   updatedAt: string;
 }

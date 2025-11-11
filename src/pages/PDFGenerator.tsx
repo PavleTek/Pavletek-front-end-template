@@ -66,7 +66,6 @@ const PDFGenerator: React.FC = () => {
   // Email functionality state
   const [emails, setEmails] = useState<EmailSender[]>([]);
   const [fromEmail, setFromEmail] = useState("");
-  const [selectedAlias, setSelectedAlias] = useState("");
   const [toEmails, setToEmails] = useState<string[]>([]);
   const [ccEmails, setCcEmails] = useState<string[]>([]);
   const [bccEmails, setBccEmails] = useState<string[]>([]);
@@ -289,14 +288,9 @@ const PDFGenerator: React.FC = () => {
       // Convert blob to File with title as filename
       const pdfFile = new File([blob], getFileName(), { type: "application/pdf" });
 
-      // Determine the actual fromEmail: use selected alias if available, otherwise use main email
-      const selectedEmailSender = emails.find((e) => e.email === fromEmail);
-      const actualFromEmail =
-        selectedAlias && selectedEmailSender?.aliases?.includes(selectedAlias) ? selectedAlias : fromEmail;
-
       // Send email with PDF attachment
       await emailService.sendTestEmail({
-        fromEmail: actualFromEmail,
+        fromEmail,
         toEmails: finalToEmails,
         ccEmails: finalCcEmails.length > 0 ? finalCcEmails : undefined,
         bccEmails: finalBccEmails.length > 0 ? finalBccEmails : undefined,
@@ -400,48 +394,16 @@ const PDFGenerator: React.FC = () => {
               value={fromEmail}
               onChange={(e) => {
                 setFromEmail(e.target.value);
-                setSelectedAlias(""); // Reset alias when email sender changes
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             >
               {emails.map((email) => (
                 <option key={email.id} value={email.email}>
-                  {email.email} ({email.emailProvider})
+                  {email.email}
                 </option>
               ))}
             </select>
           </div>
-
-          {(() => {
-            const selectedEmailSender = emails.find((e) => e.email === fromEmail);
-            const hasAliases = selectedEmailSender?.aliases && selectedEmailSender.aliases.length > 0;
-
-            if (!hasAliases) {
-              return null;
-            }
-
-            return (
-              <div>
-                <label htmlFor="alias" className="block text-sm font-medium text-gray-700 mb-2">
-                  Alias (Optional)
-                </label>
-                <select
-                  id="alias"
-                  value={selectedAlias}
-                  onChange={(e) => setSelectedAlias(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">{selectedEmailSender?.email} (Main Email)</option>
-                  {selectedEmailSender?.aliases?.map((alias, idx) => (
-                    <option key={idx} value={alias}>
-                      {alias} (Alias)
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500">Select an alias to send from, or use the main email.</p>
-              </div>
-            );
-          })()}
 
           <div>
             <label htmlFor="toEmail" className="block text-sm font-medium text-gray-700 mb-2">

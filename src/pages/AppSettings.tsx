@@ -3,13 +3,7 @@ import { XMarkIcon, TrashIcon, PencilIcon, ExclamationTriangleIcon } from "@hero
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react";
 import { emailService } from "../services/emailService";
 import { configService } from "../services/configService";
-import type {
-  EmailSender,
-  EmailProvider,
-  CreateEmailRequest,
-  UpdateEmailRequest,
-  SendTestEmailRequest,
-} from "../types";
+import type { EmailSender, CreateEmailRequest, UpdateEmailRequest, SendTestEmailRequest } from "../types";
 import SuccessBanner from "../components/SuccessBanner";
 import ErrorBanner from "../components/ErrorBanner";
 
@@ -29,11 +23,7 @@ const AppSettings: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [emailFormData, setEmailFormData] = useState({
     email: "",
-    emailProvider: "GMAIL" as EmailProvider,
-    refreshToken: "",
-    aliases: [] as string[],
   });
-  const [aliasInput, setAliasInput] = useState("");
 
   // Test email dialog state
   const [testEmailDialogOpen, setTestEmailDialogOpen] = useState(false);
@@ -50,7 +40,6 @@ const AppSettings: React.FC = () => {
   const [toEmailInput, setToEmailInput] = useState("");
   const [ccEmailInput, setCcEmailInput] = useState("");
   const [bccEmailInput, setBccEmailInput] = useState("");
-  const [selectedAlias, setSelectedAlias] = useState("");
 
   // Delete email confirmation dialog state
   const [deleteEmailDialogOpen, setDeleteEmailDialogOpen] = useState(false);
@@ -143,8 +132,7 @@ const AppSettings: React.FC = () => {
   const openAddEmailDialog = () => {
     setSelectedEmail(null);
     setIsEditMode(false);
-    setEmailFormData({ email: "", emailProvider: "GMAIL", refreshToken: "", aliases: [] });
-    setAliasInput("");
+    setEmailFormData({ email: "" });
     setEmailDialogOpen(true);
     setError(null);
     setSuccess(null);
@@ -155,11 +143,7 @@ const AppSettings: React.FC = () => {
     setIsEditMode(true);
     setEmailFormData({
       email: email.email,
-      emailProvider: email.emailProvider,
-      refreshToken: email.refreshToken || "",
-      aliases: email.aliases || [],
     });
-    setAliasInput("");
     setEmailDialogOpen(true);
     setError(null);
     setSuccess(null);
@@ -169,8 +153,7 @@ const AppSettings: React.FC = () => {
     setEmailDialogOpen(false);
     setSelectedEmail(null);
     setIsEditMode(false);
-    setEmailFormData({ email: "", emailProvider: "GMAIL", refreshToken: "", aliases: [] });
-    setAliasInput("");
+    setEmailFormData({ email: "" });
     setError(null);
     setSuccess(null);
   };
@@ -187,18 +170,12 @@ const AppSettings: React.FC = () => {
       if (isEditMode && selectedEmail) {
         const updateData: UpdateEmailRequest = {
           email: emailFormData.email,
-          emailProvider: emailFormData.emailProvider,
-          refreshToken: emailFormData.refreshToken || undefined,
-          aliases: emailFormData.aliases.length > 0 ? emailFormData.aliases : undefined,
         };
         await emailService.updateEmail(selectedEmail.id, updateData);
         setSuccess("Email sender updated successfully");
       } else {
         const createData: CreateEmailRequest = {
           email: emailFormData.email,
-          emailProvider: emailFormData.emailProvider,
-          refreshToken: emailFormData.refreshToken || undefined,
-          aliases: emailFormData.aliases.length > 0 ? emailFormData.aliases : undefined,
         };
         await emailService.createEmail(createData);
         setSuccess("Email sender created successfully");
@@ -252,7 +229,6 @@ const AppSettings: React.FC = () => {
     setToEmailInput("");
     setCcEmailInput("");
     setBccEmailInput("");
-    setSelectedAlias("");
     setTestEmailDialogOpen(true);
     setError(null);
     setSuccess(null);
@@ -272,47 +248,8 @@ const AppSettings: React.FC = () => {
     setToEmailInput("");
     setCcEmailInput("");
     setBccEmailInput("");
-    setSelectedAlias("");
     setError(null);
     setSuccess(null);
-  };
-
-  const addAlias = () => {
-    const trimmedAlias = aliasInput.trim();
-    if (!trimmedAlias) {
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedAlias)) {
-      setError(`Invalid alias email format: ${trimmedAlias}`);
-      return;
-    }
-
-    const normalizedAlias = trimmedAlias.toLowerCase();
-    if (normalizedAlias === emailFormData.email.toLowerCase()) {
-      setError("Alias cannot be the same as the main email");
-      return;
-    }
-
-    if (emailFormData.aliases.includes(normalizedAlias)) {
-      setError("Alias already exists");
-      return;
-    }
-
-    setEmailFormData({
-      ...emailFormData,
-      aliases: [...emailFormData.aliases, normalizedAlias],
-    });
-    setAliasInput("");
-    setError(null);
-  };
-
-  const removeAlias = (alias: string) => {
-    setEmailFormData({
-      ...emailFormData,
-      aliases: emailFormData.aliases.filter((a) => a !== alias),
-    });
   };
 
   const addEmailToArray = (email: string, array: string[]) => {
@@ -433,15 +370,8 @@ const AppSettings: React.FC = () => {
         return;
       }
 
-      // Determine the actual fromEmail: use selected alias if available, otherwise use main email
-      const selectedEmailSender = emails.find((e) => e.email === testEmailFormData.fromEmail);
-      const actualFromEmail =
-        selectedAlias && selectedEmailSender?.aliases?.includes(selectedAlias)
-          ? selectedAlias
-          : testEmailFormData.fromEmail;
-
       const testEmailData: SendTestEmailRequest = {
-        fromEmail: actualFromEmail,
+        fromEmail: testEmailFormData.fromEmail,
         toEmails: toEmails,
         ccEmails: ccEmails.length > 0 ? ccEmails : undefined,
         bccEmails: bccEmails.length > 0 ? bccEmails : undefined,
@@ -463,31 +393,12 @@ const AppSettings: React.FC = () => {
     }
   };
 
-  const getProviderBadgeColor = (provider: EmailProvider) => {
-    return provider === "GMAIL" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800";
-  };
-
   const hasEmailFormChanges = (): boolean => {
     if (!isEditMode || !selectedEmail) {
       return true; // Always show button in create mode
     }
 
-    // Compare current form data with original email data
-    const originalAliases = selectedEmail.aliases || [];
-    const currentAliases = emailFormData.aliases || [];
-
-    // Check if arrays are different (order doesn't matter, but we'll do simple comparison)
-    const aliasesChanged =
-      originalAliases.length !== currentAliases.length ||
-      !originalAliases.every((alias) => currentAliases.includes(alias)) ||
-      !currentAliases.every((alias) => originalAliases.includes(alias));
-
-    return (
-      emailFormData.email !== selectedEmail.email ||
-      emailFormData.emailProvider !== selectedEmail.emailProvider ||
-      emailFormData.refreshToken !== (selectedEmail.refreshToken || "") ||
-      aliasesChanged
-    );
+    return emailFormData.email !== selectedEmail.email;
   };
 
   if (loading) {
@@ -614,7 +525,7 @@ const AppSettings: React.FC = () => {
                   <option value="">Select an email sender...</option>
                   {emails.map((email) => (
                     <option key={email.id} value={email.id}>
-                      {email.email} {email.aliases && email.aliases.length > 0 && `(${email.aliases.length} alias${email.aliases.length !== 1 ? 'es' : ''})`}
+                      {email.email}
                     </option>
                   ))}
                 </select>
@@ -664,13 +575,6 @@ const AppSettings: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-x-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getProviderBadgeColor(
-                          email.emailProvider
-                        )}`}
-                      >
-                        {email.emailProvider}
-                      </span>
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -781,99 +685,6 @@ const AppSettings: React.FC = () => {
                               />
                             </div>
                           </div>
-
-                          <div>
-                            <label htmlFor="provider" className="block text-sm/6 font-medium text-gray-900">
-                              Email Provider
-                            </label>
-                            <div className="mt-2">
-                              <select
-                                id="provider"
-                                name="provider"
-                                value={emailFormData.emailProvider}
-                                onChange={(e) =>
-                                  setEmailFormData({ ...emailFormData, emailProvider: e.target.value as EmailProvider })
-                                }
-                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-800 sm:text-sm/6"
-                              >
-                                <option value="GMAIL">Gmail</option>
-                                <option value="OUTLOOK">Outlook</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label htmlFor="refreshToken" className="block text-sm/6 font-medium text-gray-900">
-                              Refresh Token (Optional)
-                            </label>
-                            <div className="mt-2">
-                              <input
-                                id="refreshToken"
-                                name="refreshToken"
-                                value={emailFormData.refreshToken}
-                                onChange={(e) => setEmailFormData({ ...emailFormData, refreshToken: e.target.value })}
-                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-800 sm:text-sm/6"
-                                placeholder="Enter OAuth2 refresh token"
-                              />
-                              <p className="mt-1 text-xs text-gray-500">
-                                Required for sending emails. Add this when creating or updating the email sender.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label htmlFor="alias" className="block text-sm/6 font-medium text-gray-900">
-                              Email Aliases
-                            </label>
-                            <div className="mt-2">
-                              <div className="flex gap-2">
-                                <input
-                                  id="alias"
-                                  name="alias"
-                                  type="email"
-                                  value={aliasInput}
-                                  onChange={(e) => setAliasInput(e.target.value)}
-                                  onKeyPress={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      addAlias();
-                                    }
-                                  }}
-                                  className="flex-1 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-800 sm:text-sm/6"
-                                  placeholder="alias@example.com"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={addAlias}
-                                  className="rounded-md bg-primary-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-500 cursor-pointer"
-                                >
-                                  Add
-                                </button>
-                              </div>
-                              {emailFormData.aliases.length > 0 && (
-                                <div className="mt-2 space-y-1">
-                                  {emailFormData.aliases.map((alias, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-700"
-                                    >
-                                      <span>{alias}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeAlias(alias)}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        Remove
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              <p className="mt-1 text-xs text-gray-500">
-                                Add email aliases that can be used as the "from" address when sending emails.
-                              </p>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -960,56 +771,19 @@ const AppSettings: React.FC = () => {
                                 id="fromEmail"
                                 name="fromEmail"
                                 value={testEmailFormData.fromEmail}
-                                onChange={(e) => {
-                                  setTestEmailFormData({ ...testEmailFormData, fromEmail: e.target.value });
-                                  setSelectedAlias(""); // Reset alias when email sender changes
-                                }}
+                                onChange={(e) =>
+                                  setTestEmailFormData({ ...testEmailFormData, fromEmail: e.target.value })
+                                }
                                 className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-800 sm:text-sm/6"
                               >
                                 {emails.map((email) => (
                                   <option key={email.id} value={email.email}>
-                                    {email.email} ({email.emailProvider})
+                                    {email.email}
                                   </option>
                                 ))}
                               </select>
                             </div>
                           </div>
-
-                          {(() => {
-                            const selectedEmailSender = emails.find((e) => e.email === testEmailFormData.fromEmail);
-                            const hasAliases = selectedEmailSender?.aliases && selectedEmailSender.aliases.length > 0;
-
-                            if (!hasAliases) {
-                              return null;
-                            }
-
-                            return (
-                              <div>
-                                <label htmlFor="alias" className="block text-sm/6 font-medium text-gray-900">
-                                  Alias
-                                </label>
-                                <div className="mt-2">
-                                  <select
-                                    id="alias"
-                                    name="alias"
-                                    value={selectedAlias}
-                                    onChange={(e) => setSelectedAlias(e.target.value)}
-                                    className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-800 sm:text-sm/6"
-                                  >
-                                    <option value="">{selectedEmailSender?.email} (Main Email)</option>
-                                    {selectedEmailSender?.aliases?.map((alias, idx) => (
-                                      <option key={idx} value={alias}>
-                                        {alias} (Alias)
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <p className="mt-1 text-xs text-gray-500">
-                                    Select an alias to send from, or use the main email.
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })()}
 
                           <div>
                             <label htmlFor="toEmail" className="block text-sm/6 font-medium text-gray-900">

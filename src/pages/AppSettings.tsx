@@ -466,6 +466,65 @@ const AppSettings: React.FC = () => {
     return emailFormData.email !== selectedEmail.email;
   };
 
+  // Keyboard handler for email dialog
+  const handleEmailDialogKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if ((!isEditMode || hasEmailFormChanges()) && emailDialogOpen) {
+        handleSaveEmail();
+      }
+    } else if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
+      // Prevent Enter from closing dialog when typing in input fields (but allow in textareas)
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "SELECT") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  };
+
+  // Keyboard handler for domain dialog
+  const handleDomainDialogKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (domainDialogOpen && domainFormData.domain.trim()) {
+        handleSaveDomain();
+      }
+    } else if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
+      // Prevent Enter from closing dialog when typing in input fields (but allow in textareas)
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "SELECT") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  };
+
+  // Keyboard handler for test email dialog
+  const handleTestEmailDialogKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (testEmailDialogOpen && !sendingTestEmail) {
+        handleSendTestEmail();
+      }
+    } else if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
+      // Prevent Enter from closing dialog when typing in input fields (but allow in textareas)
+      // Email inputs have their own handlers for adding emails, so we don't prevent default there
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" && (target as HTMLInputElement).type === "email") {
+        // Let email inputs handle Enter for adding emails
+        return;
+      }
+      if (target.tagName === "INPUT" || target.tagName === "SELECT") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  };
+
   // Domain management functions
   const openAddDomainDialog = () => {
     setDomainFormData({ domain: "" });
@@ -806,7 +865,11 @@ const AppSettings: React.FC = () => {
                 transition
                 className="pointer-events-auto w-screen max-w-md transform transition duration-500 ease-in-out data-closed:translate-x-full sm:duration-700"
               >
-                <form className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl">
+                <form 
+                  className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl"
+                  onKeyDown={handleEmailDialogKeyDown}
+                  onSubmit={(e) => e.preventDefault()}
+                >
                   <div className="h-0 flex-1 overflow-y-auto">
                     <div className="bg-primary-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
@@ -1020,7 +1083,11 @@ const AppSettings: React.FC = () => {
                 transition
                 className="pointer-events-auto w-screen max-w-md transform transition duration-500 ease-in-out data-closed:translate-x-full sm:duration-700"
               >
-                <form className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl">
+                <form 
+                  className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl"
+                  onKeyDown={handleTestEmailDialogKeyDown}
+                  onSubmit={(e) => e.preventDefault()}
+                >
                   <div className="h-0 flex-1 overflow-y-auto">
                     <div className="bg-primary-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
@@ -1377,7 +1444,11 @@ const AppSettings: React.FC = () => {
                 transition
                 className="pointer-events-auto w-screen max-w-md transform transition duration-500 ease-in-out data-closed:translate-x-full sm:duration-700"
               >
-                <form className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl">
+                <form 
+                  className="relative flex h-full flex-col divide-y divide-gray-200 bg-white shadow-xl"
+                  onKeyDown={handleDomainDialogKeyDown}
+                  onSubmit={(e) => e.preventDefault()}
+                >
                   <div className="h-0 flex-1 overflow-y-auto">
                     <div className="bg-primary-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">

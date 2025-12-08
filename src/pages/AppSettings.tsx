@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { XMarkIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { emailService } from "../services/emailService";
 import { domainService } from "../services/domainService";
 import { configService } from "../services/configService";
+import { referenceDataService, type Country, type Currency, type Language } from "../services/referenceDataService";
 import type { EmailSender, Domain, CreateEmailRequest, UpdateEmailRequest, SendTestEmailRequest, CreateDomainRequest } from "../types";
 import SuccessBanner from "../components/SuccessBanner";
 import ErrorBanner from "../components/ErrorBanner";
@@ -59,11 +60,82 @@ const AppSettings: React.FC = () => {
   const [deleteDomainDialogOpen, setDeleteDomainDialogOpen] = useState(false);
   const [domainToDelete, setDomainToDelete] = useState<Domain | null>(null);
 
+  // Reference data state
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [loadingReferenceData, setLoadingReferenceData] = useState(false);
+  const [searchTerm, setSearchTerm] = useState({ countries: '', currencies: '', languages: '' });
+  const [activeTab, setActiveTab] = useState<'countries' | 'currencies' | 'languages'>('countries');
+  const [referenceDataExpanded, setReferenceDataExpanded] = useState(false);
+  const [referenceDataLoaded, setReferenceDataLoaded] = useState(false);
+
   useEffect(() => {
     loadEmails();
     loadDomains();
     loadConfig();
   }, []);
+
+  const loadReferenceData = async () => {
+    if (referenceDataLoaded) return; // Don't reload if already loaded
+    
+    try {
+      setLoadingReferenceData(true);
+      const [countriesData, currenciesData, languagesData] = await Promise.all([
+        referenceDataService.getCountries(),
+        referenceDataService.getCurrencies(),
+        referenceDataService.getLanguages()
+      ]);
+      setCountries(countriesData.countries);
+      setCurrencies(currenciesData.currencies);
+      setLanguages(languagesData.languages);
+      setReferenceDataLoaded(true);
+    } catch (err: any) {
+      console.error('Failed to load reference data:', err);
+      setError(err.response?.data?.error || 'Failed to load reference data');
+    } finally {
+      setLoadingReferenceData(false);
+    }
+  };
+
+  const handleToggleReferenceData = () => {
+    const newExpanded = !referenceDataExpanded;
+    setReferenceDataExpanded(newExpanded);
+    if (newExpanded && !referenceDataLoaded) {
+      loadReferenceData();
+    }
+  };
+
+  const handleToggleImportant = async (type: 'countries' | 'currencies' | 'languages', id: number, currentValue: boolean) => {
+    try {
+      setError(null);
+      const newValue = !currentValue;
+      
+      if (type === 'countries') {
+        await referenceDataService.updateCountryImportant(id, newValue);
+        setCountries(countries.map(c => c.id === id ? { ...c, important: newValue } : c));
+      } else if (type === 'currencies') {
+        await referenceDataService.updateCurrencyImportant(id, newValue);
+        setCurrencies(currencies.map(c => c.id === id ? { ...c, important: newValue } : c));
+      } else {
+        await referenceDataService.updateLanguageImportant(id, newValue);
+        setLanguages(languages.map(l => l.id === id ? { ...l, important: newValue } : l));
+      }
+      
+      setSuccess(`${type === 'countries' ? 'Country' : type === 'currencies' ? 'Currency' : 'Language'} marked as ${newValue ? 'important' : 'not important'}`);
+    } catch (err: any) {
+      setError(err.response?.data?.error || `Failed to update ${type}`);
+    }
+  };
+
+  const filterItems = <T extends { name: string; code?: string }>(items: T[], searchTerm: string): T[] => {
+    if (!searchTerm.trim()) return items;
+    const term = searchTerm.toLowerCase();
+    return items.filter(item => 
+      item.name.toLowerCase().includes(term) || 
+      (item.code && item.code.toLowerCase().includes(term))
+    );
+  };
 
   const loadConfig = async () => {
     try {
@@ -836,7 +908,7 @@ const AppSettings: React.FC = () => {
       </div>
 
       {/* Test Email Section */}
-      <div>
+      <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Test Email</h2>
           <button
@@ -853,6 +925,168 @@ const AppSettings: React.FC = () => {
             Send a test email to verify your email configuration is working correctly.
           </p>
         </div>
+      </div>
+
+      {/* Reference Data Section */}
+      <div className="mb-8">
+        <button
+          type="button"
+          onClick={handleToggleReferenceData}
+          className="flex items-center justify-between w-full mb-4 p-0 bg-transparent border-none cursor-pointer hover:opacity-80"
+        >
+          <h2 className="text-xl font-semibold text-gray-900">Reference Data</h2>
+          {referenceDataExpanded ? (
+            <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+          ) : (
+            <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+          )}
+        </button>
+        {referenceDataExpanded && (
+          <div className="bg-white shadow-xs rounded-xl">
+          {/* Tabs */}
+          <div className="border-b border-gray-200">
+            <nav className="flex -mb-px" aria-label="Tabs">
+              <button
+                type="button"
+                onClick={() => setActiveTab('countries')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 ${
+                  activeTab === 'countries'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Countries
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('currencies')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 ${
+                  activeTab === 'currencies'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Currencies
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('languages')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 ${
+                  activeTab === 'languages'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Languages
+              </button>
+            </nav>
+          </div>
+
+          {/* Search */}
+          <div className="p-4 border-b border-gray-200">
+            <input
+              type="text"
+              value={searchTerm[activeTab]}
+              onChange={(e) => setSearchTerm({ ...searchTerm, [activeTab]: e.target.value })}
+              placeholder={`Search ${activeTab}...`}
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
+            />
+          </div>
+
+          {/* Content */}
+          <div className="p-4">
+            {loadingReferenceData ? (
+              <div className="text-center py-8 text-gray-500">Loading...</div>
+            ) : (
+              <div className="max-h-96 overflow-y-auto">
+                {activeTab === 'countries' && (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Important</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filterItems(countries, searchTerm.countries).map((country) => (
+                        <tr key={country.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{country.name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{country.code}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <input
+                              type="checkbox"
+                              checked={country.important}
+                              onChange={() => handleToggleImportant('countries', country.id, country.important)}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded cursor-pointer"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {activeTab === 'currencies' && (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Important</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filterItems(currencies, searchTerm.currencies).map((currency) => (
+                        <tr key={currency.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{currency.name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{currency.code}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{currency.symbol}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <input
+                              type="checkbox"
+                              checked={currency.important}
+                              onChange={() => handleToggleImportant('currencies', currency.id, currency.important)}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded cursor-pointer"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {activeTab === 'languages' && (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Important</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filterItems(languages, searchTerm.languages).map((language) => (
+                        <tr key={language.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{language.name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{language.code}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <input
+                              type="checkbox"
+                              checked={language.important}
+                              onChange={() => handleToggleImportant('languages', language.id, language.important)}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded cursor-pointer"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        )}
       </div>
 
       {/* Email Management Dialog */}

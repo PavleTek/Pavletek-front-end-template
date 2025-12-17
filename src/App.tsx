@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { DrawerProvider } from "./contexts/DrawerContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import Login from "./components/Login";
@@ -10,6 +11,7 @@ import UserManagement from "./pages/UserManagement";
 import AppSettings from "./pages/AppSettings";
 import Profile from "./pages/Profile";
 import PDFGenerator from "./pages/PDFGenerator";
+import MantenedorDrawer from "./components/mantenedorDrawer";
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -93,9 +95,13 @@ const AppRoutes: React.FC = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <DrawerProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+        {/* Render all possible drawers globally */}
+        <MantenedorDrawer drawerId="default" />
+      </DrawerProvider>
     </AuthProvider>
   );
 }

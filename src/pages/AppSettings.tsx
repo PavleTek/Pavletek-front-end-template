@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { XMarkIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { emailService } from "../services/emailService";
 import { domainService } from "../services/domainService";
@@ -67,18 +67,15 @@ const AppSettings: React.FC = () => {
   const [loadingReferenceData, setLoadingReferenceData] = useState(false);
   const [searchTerm, setSearchTerm] = useState({ countries: '', currencies: '', languages: '' });
   const [activeTab, setActiveTab] = useState<'countries' | 'currencies' | 'languages'>('countries');
-  const [referenceDataExpanded, setReferenceDataExpanded] = useState(false);
-  const [referenceDataLoaded, setReferenceDataLoaded] = useState(false);
 
   useEffect(() => {
     loadEmails();
     loadDomains();
     loadConfig();
+    loadReferenceData();
   }, []);
 
   const loadReferenceData = async () => {
-    if (referenceDataLoaded) return; // Don't reload if already loaded
-    
     try {
       setLoadingReferenceData(true);
       const [countriesData, currenciesData, languagesData] = await Promise.all([
@@ -89,20 +86,11 @@ const AppSettings: React.FC = () => {
       setCountries(countriesData.countries);
       setCurrencies(currenciesData.currencies);
       setLanguages(languagesData.languages);
-      setReferenceDataLoaded(true);
     } catch (err: any) {
       console.error('Failed to load reference data:', err);
       setError(err.response?.data?.error || 'Failed to load reference data');
     } finally {
       setLoadingReferenceData(false);
-    }
-  };
-
-  const handleToggleReferenceData = () => {
-    const newExpanded = !referenceDataExpanded;
-    setReferenceDataExpanded(newExpanded);
-    if (newExpanded && !referenceDataLoaded) {
-      loadReferenceData();
     }
   };
 
@@ -929,20 +917,8 @@ const AppSettings: React.FC = () => {
 
       {/* Reference Data Section */}
       <div className="mb-8">
-        <button
-          type="button"
-          onClick={handleToggleReferenceData}
-          className="flex items-center justify-between w-full mb-4 p-0 bg-transparent border-none cursor-pointer hover:opacity-80"
-        >
-          <h2 className="text-xl font-semibold text-gray-900">Reference Data</h2>
-          {referenceDataExpanded ? (
-            <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-          ) : (
-            <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-          )}
-        </button>
-        {referenceDataExpanded && (
-          <div className="bg-white shadow-xs rounded-xl">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Reference Data</h2>
+        <div className="bg-white shadow-xs rounded-xl">
           {/* Tabs */}
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px" aria-label="Tabs">
@@ -1086,7 +1062,6 @@ const AppSettings: React.FC = () => {
             )}
           </div>
         </div>
-        )}
       </div>
 
       {/* Email Management Dialog */}

@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { DrawerProvider } from "./contexts/DrawerContext";
+import { DrawerProvider, useDrawer } from "./contexts/DrawerContext";
+import { MantenedoresProvider } from "./contexts/MantenedoresContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import Login from "./components/Login";
@@ -12,6 +13,7 @@ import AppSettings from "./pages/AppSettings";
 import Profile from "./pages/Profile";
 import PDFGenerator from "./pages/PDFGenerator";
 import MantenedorDrawer from "./components/mantenedorDrawer";
+import { MantenedorType } from "./types/mantenedores";
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -92,15 +94,49 @@ const AppRoutes: React.FC = () => {
   );
 };
 
+/**
+ * Global Drawer Manager
+ * 
+ * Renders MantenedorDrawer instances:
+ * - Static drawers for each mantenedor type (for simple open/close)
+ * - Dynamic drawers based on drawer stack (for nested creation)
+ */
+const GlobalDrawers: React.FC = () => {
+  const { getDrawerStack } = useDrawer();
+  const drawerStack = getDrawerStack();
+
+  // Get drawer IDs that are in the stack but not covered by static drawers
+  const staticDrawerIds = Object.values(MantenedorType).map(type => `mantenedor-${type}`);
+  const dynamicDrawerIds = drawerStack.filter(id => 
+    id.startsWith('mantenedor-') && !staticDrawerIds.includes(id)
+  );
+
+  return (
+    <>
+      {/* Static drawers for each mantenedor type */}
+      {Object.values(MantenedorType).map((type) => (
+        <MantenedorDrawer key={type} drawerId={`mantenedor-${type}`} />
+      ))}
+      
+      {/* Dynamic drawers for nested creation (have unique timestamp IDs) */}
+      {dynamicDrawerIds.map((drawerId) => (
+        <MantenedorDrawer key={drawerId} drawerId={drawerId} />
+      ))}
+    </>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
       <DrawerProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
-        {/* Render all possible drawers globally */}
-        <MantenedorDrawer drawerId="default" />
+        <MantenedoresProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+          {/* Global drawers available throughout the app */}
+          <GlobalDrawers />
+        </MantenedoresProvider>
       </DrawerProvider>
     </AuthProvider>
   );
